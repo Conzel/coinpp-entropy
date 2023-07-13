@@ -8,6 +8,8 @@ from coinpp.patching import Patcher
 from coinpp.training import Trainer
 from pathlib import Path
 
+if os.environ["USER"] == "bdz907":
+    os.chdir("/mnt/qb/work/bamler/bdz907")
 
 def add_arguments(parser):
     """Model, training and wandb arguments. Note that we use integers for boolean

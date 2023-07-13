@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+rsync --progress --exclude ".DS_Store" --exclude ".pytest_cache" --exclude "__pycache__/" --exclude "data/dataset_paths.yaml" --exclude "wandb/" --exclude "build" --exclude "results" -r coinpp configs data *.py ml-cloud:~/coinpp

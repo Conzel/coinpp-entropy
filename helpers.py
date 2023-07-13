@@ -8,11 +8,14 @@ import data.vimeo90k as vimeo90k
 import torchvision
 import yaml
 from pathlib import Path
+import os
+
 
 
 def get_dataset_root(dataset_name: str):
     """Returns path to data based on dataset_paths.yaml file."""
-    with open(r"data/dataset_paths.yaml") as f:
+    dataset_path = "/home/bamler/bdz907/coinpp/data/dataset_paths.yaml" if os.environ["USER"] == "bdz907" else "/Users/almico/projects/coinpp/data/dataset_paths.yaml"
+    with open(dataset_path) as f:
         dataset_paths = yaml.safe_load(f)
 
     return Path(dataset_paths[dataset_name])
