@@ -12,8 +12,8 @@
 --num_validation_points=-1
 --validate_every=2000
 --use_wandb=1
---wandb_project_name=your_project
---wandb_entity=your_entity
+--wandb_project_name=coinpp-entropy
+--wandb_entity=alconzel
 --validation_inner_steps
 3
 --patch_shape
