@@ -3,5 +3,5 @@ cifar10: ../datasets/CIFAR10
 kodak: ../datasets/kodak
 vimeo90k: ../datasets/vimeo90k
 fastmri: ../datasets/fastmri
-era5: /Users/almico/datasets/era5-coinpp/era5
+era5: /Users/almico/datasets/era5-ours/era5
 librispeech: ../datasets/librispeech

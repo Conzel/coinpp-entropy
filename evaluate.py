@@ -1,6 +1,9 @@
+from typing import Optional
 import coinpp.conversion as conversion
 import coinpp.losses as losses
 import torch
+import math
+import re
 
 
 def evaluate_batch(model, converter, modulations, data):
@@ -84,9 +87,15 @@ def evaluate_patches(model, converter, patcher, modulations, data, chunk_size=No
         psnr = losses.mse2psnr(mse)
     return mse.item(), psnr.item()
 
+def bits_from_name(name: str) -> Optional[int]:
+    match = re.search("modulations_train_[0-9]+_steps_([0-9]+)_bits_dequantized.pt", name)
+    if match is None or len(match.groups()) != 1:
+        return None
+    else:
+        return int(match.groups()[0])
 
 def evaluate_dataset(
-    model, converter, patcher, modulations, dataset, batch_size=100, verbose=True
+    model, bits, converter, patcher, modulations, dataset, batch_size=100, verbose=True
 ):
     """Evaluate a dataset of modulations. Returns MSE and mean PSNR across
     dataset.
@@ -113,6 +122,7 @@ def evaluate_dataset(
     mses = []
     psnrs = []
     idx = 0
+    bpp = None
     for i, data in enumerate(dataloader):
         if verbose:
             print(f"Batch {i + 1}/{len(dataloader)}")
@@ -141,7 +151,13 @@ def evaluate_dataset(
         mses.append(mse)
         psnrs.append(psnr)
         idx = next_idx
-    return torch.Tensor(mses).mean().item(), torch.Tensor(psnrs).mean().item()
+
+        if num_bits is not None and i == 0:
+            n_data = math.prod(data.shape[1:])
+            n_latent = math.prod(modulations_batch.shape[1:])
+            bpp = (n_latent * num_bits)/n_data
+            
+    return torch.Tensor(mses).mean().item(), torch.Tensor(psnrs).mean().item(), bpp
 
 
 if __name__ == "__main__":
@@ -194,10 +210,12 @@ if __name__ == "__main__":
     modulations = wandb_utils.load_modulations(
         args.wandb_run_path, args.modulation_dataset, device
     )
+    num_bits = bits_from_name(args.modulation_dataset)
 
     # Compute mean MSE and PSNR for entire modulation dataset
-    mean_mse, mean_psnr = evaluate_dataset(
+    mean_mse, mean_psnr, bpp = evaluate_dataset(
         model,
+        num_bits,
         converter,
         patcher,
         modulations,
@@ -206,4 +224,4 @@ if __name__ == "__main__":
         verbose=args.verbose,
     )
 
-    print(f"MSE: {mean_mse}, PSNR: {mean_psnr}")
+    print(f"MSE: {mean_mse}, PSNR: {mean_psnr}, bpp: {bpp if bpp is not None else '???'}")
