@@ -88,7 +88,7 @@ def evaluate_patches(model, converter, patcher, modulations, data, chunk_size=No
     return mse.item(), psnr.item()
 
 def bits_from_name(name: str) -> Optional[int]:
-    match = re.search("modulations_train_[0-9]+_steps_([0-9]+)_bits_dequantized.pt", name)
+    match = re.search("modulations_[a-z]+_[0-9]+_steps_([0-9]+)_bits_dequantized.pt", name)
     if match is None or len(match.groups()) != 1:
         return None
     else:
