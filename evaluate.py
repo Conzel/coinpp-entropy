@@ -4,6 +4,8 @@ import coinpp.losses as losses
 import torch
 import math
 import re
+import time 
+import numpy as np
 
 
 def evaluate_batch(model, converter, modulations, data):
@@ -15,6 +17,7 @@ def evaluate_batch(model, converter, modulations, data):
         modulations (torch.Tensor): Shape (batch_size, num_modulations).
         data (torch.Tensor): Batch of data. Shape (batch_size, channels, *).
     """
+    
     with torch.no_grad():
         coordinates, features = converter.to_coordinates_and_features(data)
         features_recon = model.modulated_forward(coordinates, modulations)
@@ -22,7 +25,7 @@ def evaluate_batch(model, converter, modulations, data):
         # Compute MSE and mean PSNR value across batch
         mse = per_example_mse.mean().item()
         psnr = losses.mse2psnr(per_example_mse).mean().item()
-    return mse, psnr
+    return mse, psnr, features_recon, features
 
 
 def evaluate_patches(model, converter, patcher, modulations, data, chunk_size=None):
@@ -95,7 +98,7 @@ def bits_from_name(name: str) -> Optional[int]:
         return int(match.groups()[0])
 
 def evaluate_dataset(
-    model, bits, converter, patcher, modulations, dataset, batch_size=100, verbose=True
+    name, model, bits, converter, patcher, modulations, dataset, batch_size=100, verbose=True
 ):
     """Evaluate a dataset of modulations. Returns MSE and mean PSNR across
     dataset.
@@ -123,6 +126,8 @@ def evaluate_dataset(
     psnrs = []
     idx = 0
     bpp = None
+    rec_list = []
+    feature_list = []
     for i, data in enumerate(dataloader):
         if verbose:
             print(f"Batch {i + 1}/{len(dataloader)}")
@@ -132,8 +137,9 @@ def evaluate_dataset(
         modulations_batch = modulations[idx:next_idx]
         if patcher is None:
             data = data.to(modulations.device)
-            mse, psnr = evaluate_batch(model, converter, modulations_batch, data)
+            mse, psnr, features_recon, features = evaluate_batch(model, converter, modulations_batch, data)
         else:
+            raise NotImplementedError("Patcher not implemented")
             # When using patches, modulations is a list so modulations_batch
             # will be a list containing one element. Extract this to get a
             # tensor of shape (num_patches, modulations_size)
@@ -150,12 +156,18 @@ def evaluate_dataset(
             )
         mses.append(mse)
         psnrs.append(psnr)
+        rec_list.append(features_recon.detach().numpy())
+        feature_list.append(features.detach().numpy())
         idx = next_idx
 
-        if num_bits is not None and i == 0:
+        if bits is not None:
             n_data = math.prod(data.shape[1:])
             n_latent = math.prod(modulations_batch.shape[1:])
-            bpp = (n_latent * num_bits)/n_data
+            bpp = (n_latent * bits)/n_data
+        else:
+            bpp = 0
+    
+    np.savez(f'out/{name}_eval.npz', rec=np.concatenate(rec_list), orig=np.concatenate(feature_list), bpp=np.array(bpp))
             
     return torch.Tensor(mses).mean().item(), torch.Tensor(psnrs).mean().item(), bpp
 
@@ -214,6 +226,7 @@ if __name__ == "__main__":
 
     # Compute mean MSE and PSNR for entire modulation dataset
     mean_mse, mean_psnr, bpp = evaluate_dataset(
+        args.modulation_dataset.strip(".pt") + "_" + args.wandb_run_path.split("/")[-1],
         model,
         num_bits,
         converter,
